@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>//aquila-const.github.io/</loc>
+    </url>
+    <url>
+        <loc>//aquila-const.github.io/about/</loc>
+        <lastmod>2023-05-16</lastmod>
+    </url>
+    <url>
+        <loc>//aquila-const.github.io/page/1/</loc>
+    </url>
+    <url>
+        <loc>//aquila-const.github.io/posts/</loc>
+    </url>
+    <url>
+        <loc>//aquila-const.github.io/posts/first-post/</loc>
+        <lastmod>2023-05-15</lastmod>
+    </url>
+    <url>
+        <loc>//aquila-const.github.io/tags/</loc>
+    </url>
+</urlset>
