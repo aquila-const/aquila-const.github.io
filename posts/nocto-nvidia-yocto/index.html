@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/stackedit-js@1.0.7/docs/lib/stackedit.min.js"></script>
+    <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
+    <script>talkyardServerUrl='https://site-pyosab6o5f.talkyard.net';</script>
+    <script async defer src="https:&#x2F;&#x2F;c1.ty-cdn.net&#x2F;-&#x2F;talkyard-comments.min.js"></script>
+    
+
+    
+        <title>
+             Nocto - Part One - Nvidia Jetson Nano with Yocto
+            
+        </title>
+
+        
+            <meta property="og:title" content="Nocto - Part One - Nvidia Jetson Nano with Yocto" />
+        
+    
+
+    
+        
+            <meta property="og:description" content="Building a custom image for Nvidia Jetson 2GB using Yocto" />
+        
+    
+
+    
+        
+            <meta name="description" content="Building a custom image for Nvidia Jetson 2GB using Yocto" />
+        
+    
+
+    
+         <link rel="icon" type="image/png" href=&#x2F;icon&#x2F;favicon.png />
+    
+
+    
+
+    
+
+    
+    
+        <script src=//aquila-const.github.io/js/feather.min.js></script>
+    
+
+
+    
+        <link href=//aquila-const.github.io/css/fonts.css rel="stylesheet" />
+    
+
+    <link rel="stylesheet" type="text/css" media="screen" href=//aquila-const.github.io/css/main.css />
+
+    
+        <link
+            rel="stylesheet"
+            id="darkModeStyle"
+            type="text/css"
+            href=//aquila-const.github.io/css/dark.css
+            
+            
+        />
+    
+
+
+    
+
+
+</head>
+
+
+<body>
+    <div class="content">
+        <header>
+    <div class="main" id="main_title">
+        <a href=&#x2F;&#x2F;aquila-const.github.io&#x2F;>aquila</a>
+    </div>
+
+    <nav>
+        
+            <a href=&#x2F;>Home</a>
+        
+            <a href=&#x2F;posts>All posts</a>
+        
+            <a href=&#x2F;about>About</a>
+        
+            <a href=&#x2F;tags>Tags</a>
+        
+
+        
+            |
+
+            
+                <a href=&#x2F;>en</a>
+            
+        
+
+        
+    </nav>
+</header>
+
+
+        
+  
+<main>
+    <article>
+        
+        <div class="title">
+            <h1 class="title">Nocto - Part One - Nvidia Jetson Nano with Yocto</h1>
+            <div class="meta">
+                
+                    Published by <a href="https:&#x2F;&#x2F;github.com&#x2F;aquila-const" target="_blank">Hunter Rafuse</a>
+                
+                on  2023-05-20
+
+                
+            </div>
+        </div>
+
+        
+
+        <section id="content" class="body">            
+            <center> <img src="/imgs/JN2GB2.jpeg" alt="nvidia jetson nano 2gb devkit"/> </center>
+<center style="color: grey;">Jetson Nano 2GB</center>
+<h1 id="description-for-this-post">Description for this Post</h1>
+<p>I am pretty much attempting to create a GUI-based application that utilizes the image I made with Yocto. It will not be perfect, but I am shooting for performance here since we have little room for mistakes and overuse and the Jetson Nano I have [<a href="https://elinux.org/Jetson_Nano">¹</a>] cannot really handle any GUI applications efficiently.</p>
+<h2 id="yocto">Yocto</h2>
+<p>Yocto is an open-source project that provides programmers with the ability to create Linux systems with ease. You can create very bare-bones and even base-line GUI systems all with one toolset, Yocto. Yocto also uses
+a build system called <a href="https://docs.yoctoproject.org/bitbake/">BitBake</a>. Bitbake allows shell and Python tasks to be run in parallel. It has some similarities to GNU, but there are some noticeable differences, according to the documentation:</p>
+<ul>
+<li>BitBake executes tasks according to the provided metadata that builds up the tasks.</li>
+<li>Metadata is stored in recipe (.bb) and related recipe &quot;append&quot; (.bbappend) files, configuration (.conf) and underlying include (.inc) files, and in class (.bbclass) files. </li>
+<li>The metadata provides BitBake with instructions on what tasks to run and the dependencies between those tasks.</li>
+<li>BitBake includes a fetcher library for obtaining source code from various places, such as local files, source control systems, or websites.</li>
+<li>The instructions for each unit to be built (e.g., a piece of software) are known as &quot;recipe&quot; files and contain all the information about the unit (dependencies, source file locations, checksums, descriptions, and so on).</li>
+<li>BitBake includes a client/server abstraction and can be used from the command line or as a service over XML-RPC. It also has several different user interfaces.</li>
+</ul>
+<p>Yocto has a similar approach to buildroot, but for now it is a bit more streamlined to setup a Yocto-based image for the Jetson Nano.</p>
+<h2 id="why-the-jetson-nano">Why the Jetson Nano?</h2>
+<p>Like most gamers, we all knew about the trifecta for graphics and computing power: AMD, Intel, and Nvidia. AMD has mainly done both in regards to CPUs and GPUs, actually for quite some time now. Intel mainly makes CPUs, and Nvidia has only really
+competed in the GPU sphere and, for the most part, has somewhat dominated.</p>
+<p>Now things have kind of evened out, and the new playing field is the IoT, or Internet of Things, especially gearing towards &quot;AI&quot;. Nvidia had the idea to start branching off.
+into modular approaches to create as much revenue as possible, but it turns out most people want just the chip and not just a plug n play solution.</p>
+<p>That, however, is neither here nor there but just so you can kind of get a feel for what we might begin to experience in regards to performance issues,
+bugs, and pretty much constant failures. But hey, that's what programming is about. So let's start with a base image here.</p>
+<h2 id="starting-with-the-jetson-nano-image-but-first-a-word-from-yocto">Starting with the Jetson Nano Image, But first a word from Yocto</h2>
+<p>We are using the Jetson Nano, as it has the specified hardware we would need for a GUI, and it is quite cheap, to be honest. I got mine for about 60 euros, but I have seen people trying to sell them for 200 or even 300 euros, which seems
+like quite an up sell to me.</p>
+<p>First things first, we need to set up Yocto. Yocto is such a heavy tooling system that I sometimes get the feeling it is a hype and is a bit of a waste of space on my SSD, if you know what I mean (nodejs). Based on your system, we can already go ahead and setup Yocto. Start with checking your <a href="https://docs.yoctoproject.org/ref-manual/system-requirements.html?highlight=install">system requirements</a>. Here they are for quick reference:</p>
+<ul>
+<li>Ubuntu 18.04 (LTS)</li>
+<li>Ubuntu 20.04 (LTS)</li>
+<li>Ubuntu 22.04 (LTS)</li>
+<li>Fedora 36</li>
+<li>Fedora 37</li>
+<li>AlmaLinux 8.7</li>
+<li>AlmaLinux 9.1</li>
+<li>Debian GNU/Linux 11.x (Bullseye)</li>
+<li>OpenSUSE Leap 15.3</li>
+<li>OpenSUSE Leap 15.4</li>
+</ul>
+<p>If you do not have the specified system requirements, I suggest running a Docker container or a virtual machine with the specified distribution listed above. I tried running it on a newer version of Fedora (38), and it just wouldn't allow me to do anything due to incompatibilities when doing rpm installs. If you have a workaround, it would be great if you could add it in the comments below.</p>
+<p>After you have checked that your system requirements are solid, let's download and make a GUI image from Yocto.</p>
+<p>First, you need to have git installed for your OS (operating system) and head over to the <a href="https://docs.yoctoproject.org/brief-yoctoprojectqs/index.html">quick build</a> page to download the needed host packages.</p>
+<p>Then let's go ahead and clone Poky. I really do not understand why they named it poky, but the repo pretty much contains a good base distribution with OpenEmbedded Build System, Core, and BitBake. Pretty much
+everything we need to get started. It's really just a bootstrapper for our project; in another repo, I will do a custom setup instead.</p>
+<pre data-lang="sh" style="background-color:#fafafa;color:#383a42;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#a0a1a7;">#first let&#39;s cd to your git project dir
+</span><span style="color:#0184bc;">cd </span><span style="color:#e45649;">~</span><span> ./projects/
+</span><span style="color:#a0a1a7;">#now let&#39;s make a poky project dir and cd into it
+</span><span style="color:#e45649;">mkdir -p </span><span>$(</span><span style="color:#e45649;">pwd</span><span>)/nocto </span><span style="color:#a626a4;">&amp;&amp; </span><span style="color:#0184bc;">cd</span><span> nocto/
+</span><span style="color:#a0a1a7;">#let&#39;s git clone poky
+</span><span style="color:#e45649;">git</span><span> clone git://git.yoctoproject.org/poky
+</span><span>
+</span><span style="color:#0184bc;">cd</span><span> poky
+</span></code></pre>
+<p>Okay, so we have cloned our &quot;reference distribution,&quot; and we are ready to wait for a long time just to compile. It gets a little quicker after it fetches, compiles and unpacks everything.
+Let's check out a stable distro. For this, we can use mickledore. mickledore is the current stable build and has a shelf life of about 1 year from now. Let's checkout mickledore:</p>
+<pre data-lang="sh" style="background-color:#fafafa;color:#383a42;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#e45649;">git</span><span> checkout</span><span style="color:#e45649;"> -t</span><span> origin/mickledore</span><span style="color:#e45649;"> -b</span><span> nocto-mickledore
+</span></code></pre>
+<p>After that we need to make sure all of our layers run on the same branch. Most layers have a prefix of &quot;meta&quot; then a dash and the layer name like so:</p>
+<pre style="background-color:#fafafa;color:#383a42;"><code><span>meta-tegra
+</span></code></pre>
+<p>But before we do that we need to configure some things.</p>
+<h2 id="local-conf">Local.conf</h2>
+<p>Within BitBake we have a configuration [<a href="https://docs.yoctoproject.org/what-i-wish-id-known.html">²</a>] that is generated on each poky install so before we go ahead and do anything else, let's generate that conf. Make sure you are in your project directory and copy this command:</p>
+<pre data-lang="sh" style="background-color:#fafafa;color:#383a42;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#0184bc;">.</span><span> oe-init-build-env
+</span></code></pre>
+<p>Once that is done you should get a nice output like so:</p>
+<pre data-lang="sh" style="background-color:#fafafa;color:#383a42;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#e45649;">You</span><span> had no conf/local.conf file. This configuration file has therefore been
+</span><span style="color:#e45649;">created</span><span> for you with some default values. You may wish to edit it to, for
+</span><span style="color:#e45649;">example,</span><span> select a different MACHINE (target hardware)</span><span style="color:#0184bc;">.</span><span> See conf/local.conf
+</span><span style="color:#a626a4;">for</span><span> more information as common configuration options are commented.
+</span><span>
+</span><span style="color:#e45649;">You</span><span> had no conf/bblayers.conf file. This configuration file has therefore
+</span><span style="color:#e45649;">been</span><span> created for you with some default values. To add additional metadata
+</span><span style="color:#e45649;">layers</span><span> into your configuration please add entries to conf/bblayers.conf.
+</span><span>
+</span><span style="color:#e45649;">The</span><span> Yocto Project has extensive documentation about OE including a reference
+</span><span style="color:#e45649;">manual</span><span> which can be found at:
+</span><span>    </span><span style="color:#e45649;">https://docs.yoctoproject.org
+</span><span>
+</span><span style="color:#e45649;">For</span><span> more information about OpenEmbedded see their website:
+</span><span>    </span><span style="color:#e45649;">https://www.openembedded.org/
+</span><span>
+</span><span style="color:#a0a1a7;">### Shell environment set up for builds. ###
+</span><span>
+</span><span style="color:#e45649;">You</span><span> can now run </span><span style="color:#50a14f;">&#39;bitbake &lt;target&gt;&#39;
+</span><span>
+</span><span style="color:#e45649;">Common</span><span> targets are:
+</span><span>    </span><span style="color:#e45649;">core-image-minimal
+</span><span>    </span><span style="color:#e45649;">core-image-full-cmdline
+</span><span>    </span><span style="color:#e45649;">core-image-sato
+</span><span>    </span><span style="color:#e45649;">core-image-weston
+</span><span>    </span><span style="color:#e45649;">meta-toolchain
+</span><span>    </span><span style="color:#e45649;">meta-ide-support
+</span><span>
+</span><span style="color:#e45649;">You</span><span> can also run generated QEMU images with a command like </span><span style="color:#50a14f;">&#39;runqemu qemux86-64&#39;
+</span><span>
+</span><span style="color:#e45649;">Other</span><span> commonly useful commands are:
+</span><span> </span><span style="color:#e45649;">- </span><span style="color:#50a14f;">&#39;devtool&#39;</span><span> and </span><span style="color:#50a14f;">&#39;recipetool&#39;</span><span> handle common recipe tasks
+</span><span> </span><span style="color:#e45649;">- </span><span style="color:#50a14f;">&#39;bitbake-layers&#39;</span><span> handles common layer tasks
+</span><span> </span><span style="color:#e45649;">- </span><span style="color:#50a14f;">&#39;oe-pkgdata-util&#39;</span><span> handles common target package tasks
+</span></code></pre>
+<p>It tells us that since there was no preconfigured local.conf file, it generated one for us. This is what mine looks like, I only altered some minor things and didn't add so much.[<a href="https://github.com/openembedded/openembedded/blob/master/conf/local.conf.sample">³</a>] </p>
+<p>I changed the MACHINE to jetson-nano-devkit and uncommented the PACKAGE_CLASSES as I am using a machine that utilizes rpm, 
+if you were to use a Debian then Debian and so on and so forth. Usually keeping it the same is okay.</p>
+<pre data-lang="sh" style="background-color:#fafafa;color:#383a42;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#e45649;">MACHINE </span><span style="color:#a626a4;">?</span><span>= </span><span style="color:#50a14f;">&quot;jetson-nano-devkit&quot;
+</span><span style="color:#e45649;">DISTRO_FEATURES</span><span> = </span><span style="color:#50a14f;">&quot;x11 opengl &quot;
+</span><span style="color:#e45649;">TARGET_ARCH</span><span> = </span><span style="color:#50a14f;">&quot;aarch64&quot; </span><span style="color:#a0a1a7;">#jetson uses this architecture
+</span><span style="color:#e45649;">IMAGE_FSTYPES</span><span> += </span><span style="color:#50a14f;">&quot;tegraflash&quot;
+</span></code></pre>
+<p><img src="/imgs/user-configuration.png" alt="bitbake build architecture" /></p>
+<center style="color: grey;">BitBake build architecture</center>
+<p>If you read over the documentation for your local configuration [<a href="https://docs.yoctoproject.org/dunfell/overview-manual/overview-manual-concepts.html?highlight=local+conf#openembedded-build-system-concepts">⁴</a>] you will notice some BitBake files. You can be a tad bit more controlled and focus on user configurations [<a href="https://docs.yoctoproject.org/dunfell/overview-manual/overview-manual-concepts.html?highlight=local+conf#user-configuration">⁵</a>] but we will go over
+those later. These files will help target any layers we would want to include. Let's navigate to the base of the build directory and open our bblayers.conf file. Mine has some edits but yours
+should be somewhat similar:</p>
+<pre data-lang="sh" style="background-color:#fafafa;color:#383a42;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#e45649;">POKY_BBLAYERS_CONF_VERSION</span><span> = </span><span style="color:#50a14f;">&quot;2&quot;
+</span><span>
+</span><span style="color:#e45649;">BBPATH</span><span> = </span><span style="color:#50a14f;">&quot;${</span><span style="color:#e45649;">TOPDIR</span><span style="color:#50a14f;">}&quot;
+</span><span style="color:#e45649;">BBFILES </span><span style="color:#a626a4;">?</span><span>= </span><span style="color:#50a14f;">&quot;&quot;
+</span><span>
+</span><span style="color:#e45649;">BBLAYERS </span><span style="color:#a626a4;">?</span><span>= </span><span style="color:#50a14f;">&quot; </span><span style="color:#0997b3;">\
+</span><span style="color:#50a14f;">  /your_project_root_path/poky/meta </span><span style="color:#0997b3;">\
+</span><span style="color:#50a14f;">  /your_project_root_path/poky/meta-poky </span><span style="color:#0997b3;">\
+</span><span style="color:#50a14f;">  /your_project_root_path/meta-yocto-bsp </span><span style="color:#0997b3;">\
+</span><span style="color:#50a14f;">  /your_project_root_path/meta-tegra </span><span style="color:#0997b3;">\
+</span><span style="color:#50a14f;">&quot;
+</span></code></pre>
+<p>Let's now clone the meta-tegra repo:</p>
+<pre data-lang="sh" style="background-color:#fafafa;color:#383a42;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#e45649;">git</span><span> clone https://github.com/OE4T/meta-tegra.git /your_project_root_path/poky/
+</span></code></pre>
+<p>We are still missing some last bit of touches here. Each layer comes with a similar setup to poky to reduce bugs and issues. We need to cd into our meta-tegra and do a check to see if our mickledore branch is even available. Yes, you can checkout another branch but it might have some issues and cause breaking changes. Yeah I'm getting Python flashbacks too.</p>
+<pre data-lang="sh" style="background-color:#fafafa;color:#383a42;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#0184bc;">cd</span><span> /your_meta_tegra_folder/
+</span><span>
+</span><span style="color:#e45649;">git</span><span> branch</span><span style="color:#e45649;"> -a
+</span></code></pre>
+<p>Our output should look like this and there we have it, a mickledore branch.</p>
+<pre style="background-color:#fafafa;color:#383a42;"><code><span>
+</span><span>* master
+</span><span>  remotes/origin/HEAD -&gt; origin/master
+</span><span>  remotes/origin/dunfell
+</span><span>  remotes/origin/dunfell-l4t-r32.4.3
+</span><span>  remotes/origin/dunfell-l4t-r32.5.0
+</span><span>  remotes/origin/dunfell-l4t-r32.6.1
+</span><span>  remotes/origin/gatesgarth
+</span><span>  remotes/origin/hardknott
+</span><span>  remotes/origin/honister
+</span><span>  remotes/origin/kirkstone
+</span><span>  remotes/origin/kirkstone-l4t-r32.7.x
+</span><span>  remotes/origin/langdale
+</span><span>  remotes/origin/master
+</span><span>  remotes/origin/mickledore &lt;--- the one we want
+</span><span>
+</span></code></pre>
+<p>We can run <code>git checkout remotes/origin/mickledore</code> and cd back out into our poky root. Now we can cd out into the poky root and we can begin to utilize our tegra layer by building poky.</p>
+<p>BitBake will build all of the layers required to get our project up and going in no time.</p>
+<h2 id="why-tegra">Why Tegra?</h2>
+<p>Tegra comes from the name used for the SoC (System on a Chip) created by Nvidia with it's first model, the Tegra APX 2500, back in 2008. Tegra was created for mobile devices and has been replaced by their new SoC called Orin which pretty much
+is a powerhouse in supposed performance. Tegra is the SoC used on the Jetson Nano(2GB and 4GB). With the replacement for the Jetson Nano being the Jetson Orin at over 400 euros, I think I will stick with the older module for now. Plus our layer doesn't support the newer devices
+anyways. Enough with a bit of side history and let's go ahead and wait for the results.</p>
+<br/>
+<hr />
+<h2 id="time-to-build">Time to Build</h2>
+<p>It might actually take you over a day depending on your hardware and how many threads you can run with make. If you want to check on how many days you will age just run this command and times that by a thousand, kidding on the multiplication part:</p>
+<pre data-lang="sh" style="background-color:#fafafa;color:#383a42;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#e45649;">nproc
+</span></code></pre>
+<p>My output was 16 and that took me about 8 to 10 hours to completely build our sato image. Even a core-image-minimal, which is bare bones, takes about 6 to 8 hours so not much of a difference here in time consumption (times differ based on hardware, network etc.). Since we are waiting for everything to build if you want to checkout the repo or have any questions just add them in the comments below and next we will work on flashing the
+SD card in the next post.</p>
+<p>But for now just to make sure let's re run the init env and then build our image.</p>
+<pre data-lang="sh" style="background-color:#fafafa;color:#383a42;" class="language-sh "><code class="language-sh" data-lang="sh"><span style="color:#0184bc;">.</span><span> oe-init-build-env
+</span><span>
+</span><span style="color:#e45649;">bitbake</span><span> core-image-sato
+</span></code></pre>
+<p>Now all there is to do is to wait. There are other layers such as Qt, which is pretty popular in regards to enterprise solutions for GUIs. We could use Qt but I think building our own GUI would be a bit better as Qt is poorly built in regards to performance,
+cross compilation bugs and just isn't as good as others such as ImGui. But I think building our own from scratch could really help us understand the hardware we are working with a bit better. So with that, I will see you in the next post.</p>
+<h1 id="post-script">Post Script</h1>
+<h2 id="code">Code</h2>
+<p>Everything I do in here can be seen on my github. The repo for today's post is <a href="https://github.com/aquila-const/Nocto">here</a>.
+As for branches, today's should be nocto-p1 which is self explanatory <a href="https://github.com/aquila-const/Nocto/tree/nocto-p1">*</a>.</p>
+<h2 id="what-s-next">What's next</h2>
+<p>We need to flash our image to an SD card, write the graphics engine and run some tiny tasks. There won't be any big complicated things to this implementation.</p>
+<p>The only thing we are trying to do is to figure out how our hardware works,
+what are our limitations, how can we keep our peformance smooth while keeping those constraints in mind, remembering security measures and so on. We also should contemplate on ways speed up the building process which will be in a later post.</p>
+<p>For now it's about going through the motions.</p>
+ 
+        </section>
+
+        
+            <div class="post-tags">
+                <nav class="nav tags">
+                    <ul class="tags">
+                        
+                            <li><a href=//aquila-const.github.io/tags/yocto/>yocto</a></li>
+                        
+                            <li><a href=//aquila-const.github.io/tags/nvidia/>nvidia</a></li>
+                        
+                            <li><a href=//aquila-const.github.io/tags/tegra/>tegra</a></li>
+                        
+                            <li><a href=//aquila-const.github.io/tags/english/>english</a></li>
+                        
+                    </ul>
+                </nav>
+            </div>
+        
+            
+            <div class="talkyard-comments" data-discussion-id="nocto-nvidia-jetson-nano-with-yocto-part-one" style="margin-top: 45px;">
+        
+    </article>
+</main>
+
+
+
+        <footer>
+  <div style="display:flex">
+    
+        <a class="soc" href=https:&#x2F;&#x2F;github.com&#x2F;aquila-const title=GitHub>
+            <i data-feather=github></i>
+        </a>
+    
+        <a class="soc" href=https:&#x2F;&#x2F;linkedin.com&#x2F;in&#x2F;hunter-rafuse title=LinkedIn>
+            <i data-feather=linkedin></i>
+        </a>
+    
+        <a class="soc" href=mailto:hunterrafuse@outlook.com title=Email>
+            <i data-feather=mail></i>
+        </a>
+    
+  </div>
+  <div class="footer-info">
+    ⚡️ 2023 © hunter
+    | <a href="https://github.com/athul/archie">Archie Theme</a> |
+    Built With
+    <a href="https://www.getzola.org/">Zola</a>
+  </div>
+</footer>
+
+
+
+<script>
+    feather.replace();
+</script>
+
+
+    </div>
+</body>
+
+</html>

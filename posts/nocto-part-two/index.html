@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/stackedit-js@1.0.7/docs/lib/stackedit.min.js"></script>
+    <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
+    <script>talkyardServerUrl='https://site-pyosab6o5f.talkyard.net';</script>
+    <script async defer src="https:&#x2F;&#x2F;c1.ty-cdn.net&#x2F;-&#x2F;talkyard-comments.min.js"></script>
+    
+
+    
+        <title>
+             Nocto - Part Two - Flashing Our Image
+            
+        </title>
+
+        
+            <meta property="og:title" content="Nocto - Part Two - Flashing Our Image" />
+        
+    
+
+    
+        
+            <meta property="og:description" content="Second post for Nocto where we flash our image to our Jetson Nano 2GB." />
+        
+    
+
+    
+        
+            <meta name="description" content="Second post for Nocto where we flash our image to our Jetson Nano 2GB." />
+        
+    
+
+    
+         <link rel="icon" type="image/png" href=&#x2F;icon&#x2F;favicon.png />
+    
+
+    
+
+    
+
+    
+    
+        <script src=//aquila-const.github.io/js/feather.min.js></script>
+    
+
+
+    
+        <link href=//aquila-const.github.io/css/fonts.css rel="stylesheet" />
+    
+
+    <link rel="stylesheet" type="text/css" media="screen" href=//aquila-const.github.io/css/main.css />
+
+    
+        <link
+            rel="stylesheet"
+            id="darkModeStyle"
+            type="text/css"
+            href=//aquila-const.github.io/css/dark.css
+            
+            
+        />
+    
+
+
+    
+
+
+</head>
+
+
+<body>
+    <div class="content">
+        <header>
+    <div class="main" id="main_title">
+        <a href=&#x2F;&#x2F;aquila-const.github.io&#x2F;>aquila</a>
+    </div>
+
+    <nav>
+        
+            <a href=&#x2F;>Home</a>
+        
+            <a href=&#x2F;posts>All posts</a>
+        
+            <a href=&#x2F;about>About</a>
+        
+            <a href=&#x2F;tags>Tags</a>
+        
+
+        
+            |
+
+            
+                <a href=&#x2F;>en</a>
+            
+        
+
+        
+    </nav>
+</header>
+
+
+        
+  
+<main>
+    <article>
+        
+        <div class="title">
+            <h1 class="title">Nocto - Part Two - Flashing Our Image</h1>
+            <div class="meta">
+                
+                    Published by <a href="https:&#x2F;&#x2F;github.com&#x2F;aquila-const" target="_blank">Hunter Rafuse</a>
+                
+                on  2023-07-06
+
+                
+            </div>
+        </div>
+
+        
+
+        <section id="content" class="body">            
+            <h2 id="side-note">Side note</h2>
+<p>To start off with, I have had some issues flashing with fedora. So I changed my host to Ubuntu 22.04 and it works like a charm. You can keep everything the same or tweak it, your call.</p>
+<h2 id="description">Description</h2>
+<p>In this part we will tidy up with a base sato install just to make sure our flash is working before we add our custom application. Keep in mind, you will not have access to anything but your application. After that we can add valgrind(or MET), OTA updates to just update our app and maybe add some mock and tests with gtest and gmock.</p>
+<h2 id="nocto-part-two-flashing">Nocto - Part Two - Flashing</h2>
+<p>This will be somewhat of a short post as this is quite straight forward. All we need to do is to go to where our image was create, move that to a better destination, untar it and flash it to our board. Some issues arose with Fedora 37 and 38 so I recommend utilizing Ubuntu 22.04 as that worked for me. After we have built our Nocto image we should navigate to our build directory but here is a tree for reference:</p>
+<pre data-lang="bash" style="background-color:#fafafa;color:#383a42;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#e45649;">mkdir ~</span><span>/tegraflash
+</span><span style="color:#e45649;">cp</span><span> /build/tmp/deploy/images/jetson-nano-2gb-devkit/core-image-sato-jetson-nano-2gb-devkit.tegraflash.tar.gz </span><span style="color:#e45649;">~</span><span>/tegraflash
+</span><span style="color:#0184bc;">cd </span><span style="color:#e45649;">~</span><span>/tegraflash
+</span><span style="color:#e45649;">tar -xvf</span><span> core-image-sato-jetson-nano-2gb-devkit.tegraflash.tar.gz
+</span><span style="color:#e45649;">rm -rf</span><span> core-image-sato-jetson-nano-2gb-devkit.tegraflash.tar.gz </span><span style="color:#a0a1a7;">#let&#39;s keep it clean here
+</span></code></pre>
+<p>After we untar everything we get a list of boot images and bin files as well as a storage partition and some scripting files. We need to setup our nano devkit in order to accept a flash over USB. We could do it through the sd card but there are some issues and it may not pickup the sdcard at all. Let's take a look at our directory first, btw I am using tree and it is somewhat good for listing files in depth for example:</p>
+<pre data-lang="bash" style="background-color:#fafafa;color:#383a42;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#e45649;">tree ~</span><span>/</span><span style="color:#e45649;"> -d -L</span><span> 2 </span><span style="color:#a626a4;">| </span><span style="color:#e45649;">grep</span><span> dirname
+</span></code></pre>
+<p>This will print out our user directory and only show directories at a depth of 2 and to even make it cleaner we look for a specific dirname just to be sure it exists in the first place. There are other ways to keep it even cleaner but for now we can move on to flashing. Directory looks like below after we untar:</p>
+<ul>
+<li>l4t_bup_gen.func -&gt; A helper file that contains all BUP generation related functions.</li>
+<li>BMP_generator_L4T.py -&gt; Creates bmp.blob, using a configuration file as input.</li>
+<li>tegradevflash -&gt; Bootloader device communication library.</li>
+<li>tegrabct -&gt; BCT operation helper binary.</li>
+<li>mkbctpart -&gt; Tool for boot configuration table partition.</li>
+<li>warmboot.bin -&gt; Warm boot binary.</li>
+<li>cboot.bin -&gt; CPU binary to load the kernel. It also supports Fastboot, charging, and display.</li>
+<li>nvtboot_rb.bin -&gt; Jetson boot-specific Bootloader binary (AVP Bootloader, microboot, miniloader).</li>
+<li>flash.xml.in -&gt; Layout for all of the files of the SPI.</li>
+<li>generate_bup_payload.sh -&gt; Inits BUP payload.</li>
+<li>tegrasign_v3_util.py -&gt; Python helper script for signing and encryption.</li>
+<li>cboot_rb.bin -&gt; Second-stage bootloader software component for Jetson Nano.</li>
+<li>mkbootimg -&gt; Tool for img creation.</li>
+<li>dosdcard.sh -&gt; Flashes SD Card image.</li>
+<li>tegraopenssl -&gt; Interface code for OpenSSL.</li>
+<li>core-image-sato.ext4 -&gt; Sato storage partition.</li>
+<li>tegrahost -&gt; Bootloader encryption binary.</li>
+<li>mkpkc -&gt; Make private key.</li>
+<li>tegra210-flash-helper.sh</li>
+<li>boot.img -&gt; A u boot binary.</li>
+<li>eks.img -&gt; An encrypted key set.</li>
+<li>tegraparser -&gt; Parses partition configuration, common BCT configuration, fuse bypass configuration and NVIDIA Configuration Table (NCT).</li>
+<li>tos-mon-only.img -&gt; Secure-world software image (ARM® Trusted Firmware).</li>
+<li>bsp_version -&gt; Jetson Linux BSP release version information.</li>
+<li>jetson-nano-2gb-devkit.cfg -&gt; Configuration file for Jetson Nano 2GB to flash QSPI-NOR and microSD card.</li>
+<li>sc7entry-firmware.bin -&gt; Binary to help system enter low power state.</li>
+<li>tegra210-p3448-0003-p3542-0000.dtb -&gt; T210-specific DTB file.</li>
+<li>rp4.blob -&gt; XUSB firmware.</li>
+<li>tegrasign_v3_internal.py -&gt; Python helper script for signing and encryption.</li>
+<li>flashvars -&gt; Options to create a customized system based on a specified machine.</li>
+<li>nvtboot.bin -&gt; Jetson boot-specific Bootloader binary (AVP Bootloader, microboot, miniloader).</li>
+<li>nvtboot_cpu.bin -&gt; CPU part of TegraBoot for TLK hand over transition.</li>
+<li>nvtboot_recovery.bin -&gt; AVP bootrom applet binary used by TegraFlash.</li>
+<li>tegrasign -&gt; TegraSign creates signature data for PKC operating mode and hash, and encrypted data for SBK operating mode.</li>
+<li>odmsign.func -&gt; Fix failure with secureboot PKC keys.</li>
+<li>tegrarcm -&gt; BootROM RCM communications binary.</li>
+<li>doflash.sh -&gt; Flash util for over USB.</li>
+<li>mksparse -&gt; Sparse image flashing with Bootloader.</li>
+<li>bmp.blob -&gt; Three bmp image files for splash screen.</li>
+<li>tegraflash.py -&gt; Default flashing application used for flashing Jetson devices with Jetson Linux.</li>
+<li>mkgpt -&gt; Tool that encodes both primary and secondary GPT into flashable binary image files.</li>
+<li>nvtboot_cpu_rb.bin -&gt; First-stage bootloader component that runs on the CCPLEX.</li>
+<li>chkbdinfo -&gt; Provides board information.</li>
+<li>tegrasign_v3.py -&gt; Python script for signing and encryption.</li>
+<li>make-sdcard -&gt; Tool to create an SD card image.</li>
+<li>tegraflash_internal.py -&gt; Helper implementation API script for tegraflash.py.</li>
+<li>nvflashxmlparse -&gt; Parses the flash xml file.</li>
+<li>BUP_generator.py -&gt; A utility that generates final BUP bl_update_payload from input rollback.bin and an entry list.</li>
+</ul>
+<p>You can take a peek at the documentation and find the Package Manifest to get a better grasp on things, like boot processes, OTA updates(will be adding later), etc.</p>
+<h1 id="flashing">Flashing</h1>
+<p>We can do one of two things or even both here. One we can use dosdcard.sh to create and flash an image to an sdcard. Two we can flash over USB with doflash.sh . The easiest one has been doflash.sh as it doesn't need anything extra to flash correctly. Just need to do this in 3 easy steps:</p>
+<p>1 - Power off the Jetson Nano 2GB Devkit if it isn't already and boot into recovery mode.</p>
+<p>2 - Check that it is in recovery mode and correctly detected by your host machine.</p>
+<p>3 - Flash your new setup onto the jetson nano.</p>
+<p>4 - Power it on and check it out.</p>
+<h2 id="power-off-the-jetson-nano">Power off the Jetson Nano</h2>
+<p>To begin, the jetson nano needs to be completely turned off and disconnected from your host machine. I would recommend not removing the power source until it is off by either connected a button to the pwr and gnd pins or do a shutdown now approach. We then need to cause a bit of a forced recovery mode here. I might add some peripherals with buttons on it to later do things like this but for now we just have to jerry rig it a bit. If you have a jumper cable or  a jumper cap those will do just fine. You can even, when you power it on, short it by touching the GND pin to the FC REC pin with a screwdriver or something similar. We just need it to boot into recovery mode for flashing:</p>
+<center> <img src="/imgs/fc_rec.jpg" alt="forced recovery pins jetson nano 2gb" /> </center>
+<center style="color: grey;">FC REC pin and GND for forced recovery</center>
+<h2 id="detect-the-jetson-nano">Detect the Jetson Nano</h2>
+<p>Your screen will be black which is the correct state it should be in. We want to have it connected on the power source and the data USB (far right) so we can run our flash script. After the usb cables are connected we can run a libusb script to check it out:</p>
+<pre data-lang="bash" style="background-color:#fafafa;color:#383a42;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#e45649;">lsusb
+</span></code></pre>
+<p>This will give us a list of active and connected devices. We should see Nvidia as one. What the doflash script does is it automatically checks for a jetson device and begins the flashing procedure. You should see something like this:</p>
+<pre data-lang="bash" style="background-color:#fafafa;color:#383a42;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#e45649;">lsusb
+</span><span style="color:#e45649;">Bus</span><span> 006 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
+</span><span style="color:#e45649;">Bus</span><span> 005 Device 002: ID 8087:0029 Intel Corp. AX200 Bluetooth
+</span><span style="color:#e45649;">Bus</span><span> 005 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+</span><span style="color:#e45649;">Bus</span><span> 004 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
+</span><span style="color:#e45649;">Bus</span><span> 003 Device 004: ID 0b05:193b ASUSTek Computer, Inc. ITE Device(8910)
+</span><span style="color:#e45649;">Bus</span><span> 003 Device 003: ID 0b05:1866 ASUSTek Computer, Inc. N-KEY Device
+</span><span style="color:#e45649;">Bus</span><span> 003 Device 005: ID 0955:7f21 NVIDIA Corp. APX
+</span><span style="color:#e45649;">Bus</span><span> 003 Device 002: ID 046d:c539 Logitech, Inc. USB Receiver
+</span><span style="color:#e45649;">Bus</span><span> 003 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+</span><span style="color:#e45649;">Bus</span><span> 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
+</span><span style="color:#e45649;">Bus</span><span> 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+</span></code></pre>
+<p>This is what it should look like:</p>
+<center> <img src="/imgs/rec_mode.jpg" alt="jetson nano 2gb recovery mode" /> </center>
+<center style="color: grey;">Jetson Nano 2GB recovery mode for flashing</center>
+<h2 id="flash-the-jetson-nano">Flash the Jetson Nano</h2>
+<p>We can now flash the jetson nano. Let's run our script in our tegra-flash directory:</p>
+<pre style="background-color:#fafafa;color:#383a42;"><code><span>sudo ./doflash
+</span></code></pre>
+<p>Our output is quite long and it may take a little bit. After it is complete it will restart your Jetson and we can remove the jumper cables, cap or if we had our screwdriver we can just make sure we took it off after we used it in the first step. With that complete we can checkout the progress.</p>
+<h2 id="checkout-the-setup">Checkout the setup</h2>
+<p>Since we are using Yocto's Sato image it basically gives us a base OS with some games and such, but we really don't want that do we. We want to boot it into our own application whichever it may be.</p>
+<h1 id="custom-application">Custom application</h1>
+<p>The main issue we run into with this is we need to have a compiled application that we then therfore tell our image to incorporate into. Preferrably during the bitbake image build phase. After that we can create some github actions to pretty much do an OTA update and automate the build and deploy process. With that in mind I recommend reading over the documentation if you had any questions and also ask below if you may need any help. No changes were made to the Nocto repo except a pointer to this post. I might add a summarized step later. In the next post we will go over making some changes to the Nocto projet and adding our own layer to clone our built application and do some other minor fixes to really polish this thing out. Until the next post.</p>
+ 
+        </section>
+
+        
+            <div class="post-tags">
+                <nav class="nav tags">
+                    <ul class="tags">
+                        
+                            <li><a href=//aquila-const.github.io/tags/yocto/>yocto</a></li>
+                        
+                            <li><a href=//aquila-const.github.io/tags/nvidia/>nvidia</a></li>
+                        
+                            <li><a href=//aquila-const.github.io/tags/tegra/>tegra</a></li>
+                        
+                            <li><a href=//aquila-const.github.io/tags/english/>english</a></li>
+                        
+                    </ul>
+                </nav>
+            </div>
+        
+            
+            <div class="talkyard-comments" data-discussion-id="nocto-nvidia-jetson-nano-part-two" style="margin-top: 45px;">
+        
+    </article>
+</main>
+
+
+
+        <footer>
+  <div style="display:flex">
+    
+        <a class="soc" href=https:&#x2F;&#x2F;github.com&#x2F;aquila-const title=GitHub>
+            <i data-feather=github></i>
+        </a>
+    
+        <a class="soc" href=https:&#x2F;&#x2F;linkedin.com&#x2F;in&#x2F;hunter-rafuse title=LinkedIn>
+            <i data-feather=linkedin></i>
+        </a>
+    
+        <a class="soc" href=mailto:hunterrafuse@outlook.com title=Email>
+            <i data-feather=mail></i>
+        </a>
+    
+  </div>
+  <div class="footer-info">
+    ⚡️ 2023 © hunter
+    | <a href="https://github.com/athul/archie">Archie Theme</a> |
+    Built With
+    <a href="https://www.getzola.org/">Zola</a>
+  </div>
+</footer>
+
+
+
+<script>
+    feather.replace();
+</script>
+
+
+    </div>
+</body>
+
+</html>

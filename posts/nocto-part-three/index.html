@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/stackedit-js@1.0.7/docs/lib/stackedit.min.js"></script>
+    <script src="https://unpkg.com/turndown/dist/turndown.js"></script>
+    <script>talkyardServerUrl='https://site-pyosab6o5f.talkyard.net';</script>
+    <script async defer src="https:&#x2F;&#x2F;c1.ty-cdn.net&#x2F;-&#x2F;talkyard-comments.min.js"></script>
+    
+
+    
+        <title>
+             Nocto - Part Three - Adding Our Own Application
+            
+        </title>
+
+        
+            <meta property="og:title" content="Nocto - Part Three - Adding Our Own Application" />
+        
+    
+
+    
+        
+            <meta property="og:description" content="Third post for Nocto where we add our own application to run on boot after a custom splash screen." />
+        
+    
+
+    
+        
+            <meta name="description" content="Third post for Nocto where we add our own application to run on boot after a custom splash screen." />
+        
+    
+
+    
+         <link rel="icon" type="image/png" href=&#x2F;icon&#x2F;favicon.png />
+    
+
+    
+
+    
+
+    
+    
+        <script src=//aquila-const.github.io/js/feather.min.js></script>
+    
+
+
+    
+        <link href=//aquila-const.github.io/css/fonts.css rel="stylesheet" />
+    
+
+    <link rel="stylesheet" type="text/css" media="screen" href=//aquila-const.github.io/css/main.css />
+
+    
+        <link
+            rel="stylesheet"
+            id="darkModeStyle"
+            type="text/css"
+            href=//aquila-const.github.io/css/dark.css
+            
+            
+        />
+    
+
+
+    
+
+
+</head>
+
+
+<body>
+    <div class="content">
+        <header>
+    <div class="main" id="main_title">
+        <a href=&#x2F;&#x2F;aquila-const.github.io&#x2F;>aquila</a>
+    </div>
+
+    <nav>
+        
+            <a href=&#x2F;>Home</a>
+        
+            <a href=&#x2F;posts>All posts</a>
+        
+            <a href=&#x2F;about>About</a>
+        
+            <a href=&#x2F;tags>Tags</a>
+        
+
+        
+            |
+
+            
+                <a href=&#x2F;>en</a>
+            
+        
+
+        
+    </nav>
+</header>
+
+
+        
+  
+<main>
+    <article>
+        
+        <div class="title">
+            <h1 class="title">Nocto - Part Three - Adding Our Own Application</h1>
+            <div class="meta">
+                
+                    Published by <a href="https:&#x2F;&#x2F;github.com&#x2F;aquila-const" target="_blank">Hunter Rafuse</a>
+                
+                on  2023-07-20
+
+                
+            </div>
+        </div>
+
+        
+
+        <section id="content" class="body">            
+            <h2 id="description">Description</h2>
+<p>This post is actually kind of brief to a little bit of a mid sized post as we really only need to understand our meta-imgui layer, how it functions during the build process with bitbake and what semi changes we need to make to the poky repo in order for it to work.</p>
+<p>This will be utilizing systemd non sysvinit which is basically a group of System V-style init programs that include init, which is ran by the kernel as process 1 and is the subsequent parent of all other processes. We are using ubuntu so we need to use systemd. Plus systemd is the newer implementation whereas sysv is a 
+bit older.</p>
+<h2 id="background">Background</h2>
+<p>Poky is a reference embedded integration layer which is on top of OE-Core or OpenEmbedded Core.</p>
+<center> <img src="/imgs/poky-reference-distribution.png" alt="yocto poky"/> </center>
+<center style="color: grey;">Yocto Project Layer Documentation</center>
+<p>This consists of <a href="https://docs.yoctoproject.org/overview-manual/yp-intro.html#the-yocto-project-layer-model">¹</a>:</p>
+<ul>
+<li>BitBake which is a tesk exectutor, scheduler that is in the core of OpenEmbedded build system.</li>
+<li>meta-poky layer which is specified as poky meta data.</li>
+<li>meta-yocto-bsp which are a host of Yocto Project based Board Support Packages(BSP).</li>
+<li>OpenEmbeddedCore(OE-Core) metadata which is consisting of:
+<ul>
+<li>shared configs</li>
+<li>global variable definitions</li>
+<li>shared classes which define the encapsulation, inheritance of build logic</li>
+<li>packaging</li>
+<li>recipes which are the logical units of software and images to be built</li>
+</ul>
+</li>
+<li>Documentation which consists of the Yocto Project source files used to create the set of user manuals.</li>
+</ul>
+<h2 id="our-application">Our Application</h2>
+<p>To be very honest with you, any project that uses make or cmake can be used in here. It just needs to be tweaked a bit but if you are utilizing CMake then I suggest making sure you follow through this as best you can. If you have any suggestions for changes let me know in a PR or a comment.</p>
+<h3 id="first-things-first">First things first</h3>
+<p>To get started the meta-imgui layer is actually quite basic:</p>
+<pre data-lang="shell" style="background-color:#fafafa;color:#383a42;" class="language-shell "><code class="language-shell" data-lang="shell"><span>├── conf
+</span><span>│   └── layer.conf
+</span><span>├── .gitignore
+</span><span>├── LICENSE
+</span><span>├── README.md
+</span><span>└── recipes-core
+</span><span>    ├── noctogui
+</span><span>    │   ├── files
+</span><span>    │   │   ├── noctogui-1.0.tar.gz
+</span><span>    │   │   ├── noctogui-init
+</span><span>    │   │   └── noctogui-systemd.service
+</span><span>    │   └── noctogui_1.0.bb
+</span><span>    └── psplash
+</span><span>        ├── files
+</span><span>        │   ├── psplash-bar-img.png
+</span><span>        │   ├── psplash-colors.h
+</span><span>        │   └── psplash-poky-img.png
+</span><span>        └── psplash_git.bbappend
+</span></code></pre>
+<p>We only have two directories and three files at the base. We can run through those now and I will try to keep it as easy to follow as possible.</p>
+<h3 id="layer-conf">Layer.conf</h3>
+<p>The conf directory is where we store our layer configuration files. It targets the layer directory, including the recipes and any bitbake and bitbake append(for customizing already premade layers) files. We also have some attributes we can use for our layer to be compatible with certain releases e.g. dunfell, warrior and so on. <a href="https://docs.yoctoproject.org/dev-manual/layers.html#understanding-and-creating-layers">²</a></p>
+<h3 id="recipes-core">Recipes-core</h3>
+<p>In recipes-core, this consists of what is needed to build a basic linux image including commonly used dependencies. As of now the most logical place would actually be to have our project split and utilize also recipes-graphics, recipes-devtools, recipes-connectivity and so on as we should be replacing poky with our own distribution as poky is for reference or what we can learn from in regards to making our own.</p>
+<p>In recipes-core we have noctogui, where we store our layer logic for pulling our app, building and installing it.</p>
+<p>Next we have psplash. Psplash is used for the splash screen in core-image-sato build. Here, we have a custom colors header, the loading bar png and the logo background png. In the root we added an override file called psplash_git.bbappend which is %target_layer_file_name%.bbappend where we append a bitbake file with our overriding options.</p>
+<p>Within our layer we need to think about what our application needs. It needs a windowing tool, bunch of graphics libraries and dependencies required by our UI app. In this case I am using ImGui which is a pretty light weight UI framework primarily used in game engines. It is quite great as we can use some graphical implementations to perform benchmarks, run memory tests and see what we can really do with our jetson nano, which really isn't much let's be honest. We can later add some opencv and really round this out.</p>
+<p>Our main recipes-core/noctogui file is as follows:</p>
+<pre data-lang="bash" style="background-color:#fafafa;color:#383a42;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#e45649;">SUMMARY</span><span> = </span><span style="color:#50a14f;">&quot;Installer for ImGui projects.&quot;
+</span><span style="color:#a0a1a7;">#layer project page url
+</span><span style="color:#e45649;">HOMEPAGE</span><span> = </span><span style="color:#50a14f;">&quot;https://github.com/aquila-const/NoctoGui&quot;
+</span><span style="color:#a0a1a7;">#layer description
+</span><span style="color:#e45649;">DESCRIPTION</span><span> = </span><span style="color:#50a14f;">&quot;This is a UI for Nocto repo. Built on ImGui.&quot;
+</span><span style="color:#a0a1a7;">#specified license
+</span><span style="color:#e45649;">LICENSE</span><span> = </span><span style="color:#50a14f;">&quot;MIT&quot;
+</span><span style="color:#a0a1a7;">#license sanity check, md5
+</span><span style="color:#e45649;">LIC_FILES_CHKSUM</span><span> = </span><span style="color:#50a14f;">&quot;file://${</span><span style="color:#e45649;">WORKDIR</span><span style="color:#50a14f;">}/LICENSE;md5=9768340f0372ee916245d20c0c3d67de&quot;
+</span><span style="color:#e45649;">DEPENDS</span><span> = </span><span style="color:#50a14f;">&quot;gdk-pixbuf-native&quot;
+</span><span>
+</span><span style="color:#a0a1a7;">#we need x11 in order to run our GUI
+</span><span style="color:#e45649;">DISTRO_FEATURES_append</span><span> = </span><span style="color:#50a14f;">&quot; x11&quot;
+</span><span>
+</span><span style="color:#a0a1a7;">#There has been some issue with directly writing the ImGui application 
+</span><span style="color:#a0a1a7;">#to the jetson-nano-2gb image as it saves in default aarchpoky linux directory
+</span><span style="color:#a0a1a7;">#and is not written to the rootfs.
+</span><span style="color:#e45649;">FILESEXTRAPATHS_prepend</span><span> := </span><span style="color:#50a14f;">&quot;${</span><span style="color:#e45649;">THISDIR</span><span style="color:#50a14f;">}/${</span><span style="color:#e45649;">PN</span><span style="color:#50a14f;">}-${</span><span style="color:#e45649;">PV</span><span style="color:#50a14f;">}:&quot;
+</span><span style="color:#e45649;">MULTIMACH_TARGET_SYS</span><span> = </span><span style="color:#50a14f;">&quot;jetson_nano_2gb_devkit-poky-linux&quot;
+</span><span style="color:#e45649;">WORKDIR</span><span> = </span><span style="color:#50a14f;">&quot;${</span><span style="color:#e45649;">TMPDIR</span><span style="color:#50a14f;">}/work/${</span><span style="color:#e45649;">MULTIMACH_TARGET_SYS</span><span style="color:#50a14f;">}/${</span><span style="color:#e45649;">PN</span><span style="color:#50a14f;">}/${</span><span style="color:#e45649;">EXTENDPE</span><span style="color:#50a14f;">}${</span><span style="color:#e45649;">PV</span><span style="color:#50a14f;">}-${</span><span style="color:#e45649;">PR</span><span style="color:#50a14f;">}&quot;
+</span><span>
+</span><span style="color:#a0a1a7;">#this is your release commit SHA
+</span><span style="color:#e45649;">SRCREV</span><span> = </span><span style="color:#50a14f;">&quot;1a008207bef7c68cdef543d551f1617c809a89e6&quot;
+</span><span>
+</span><span style="color:#a0a1a7;">#this is where you add your repo, make sure the branch name matches as well
+</span><span style="color:#e45649;">SRC_URI</span><span> = </span><span style="color:#50a14f;">&quot;git://github.com/aquila-const/NoctoGui.git;protocol=https;branch=main&quot;
+</span><span style="color:#e45649;">S</span><span> = </span><span style="color:#50a14f;">&quot;${</span><span style="color:#e45649;">WORKDIR</span><span style="color:#50a14f;">}/git&quot;
+</span><span>
+</span><span style="color:#a0a1a7;">#these are needed to compile and run our app on boot
+</span><span style="color:#e45649;">inherit</span><span> cmake pkgconfig update-alternatives systemd
+</span><span style="color:#a0a1a7;">#required for windowing
+</span><span style="color:#e45649;">SYSTEMD_AUTO_ENABLE</span><span> = </span><span style="color:#50a14f;">&quot;enable&quot;
+</span><span style="color:#e45649;">SYSTEMD_SERVICE_${PN}</span><span> = </span><span style="color:#50a14f;">&quot;noctogui-systemd.service&quot;
+</span><span>
+</span><span style="color:#a0a1a7;">#The normal approach is to use += 
+</span><span style="color:#e45649;">SRC_URI_append</span><span> += </span><span style="color:#50a14f;">&quot; file://noctogui-systemd.service </span><span style="color:#0997b3;">\
+</span><span style="color:#50a14f;">                    file://noctogui-init&quot;
+</span><span>
+</span><span>
+</span><span style="color:#e45649;">FILES_${PN}</span><span> += </span><span style="color:#50a14f;">&quot;${</span><span style="color:#e45649;">system_unitdir</span><span style="color:#50a14f;">}/system/noctogui.service&quot;
+</span><span>
+</span><span>
+</span><span style="color:#e45649;">PACKAGECONFIG </span><span style="color:#a626a4;">??</span><span>= </span><span style="color:#50a14f;">&quot;${</span><span style="color:#e45649;">@bb.utils.contains(</span><span style="color:#50a14f;">&#39;DISTRO_FEATURES&#39;</span><span style="color:#a626a4;">, </span><span style="color:#50a14f;">&#39;x11&#39;, &#39;x11&#39;, &#39;&#39;, d)}&quot;
+</span><span style="color:#e45649;">PACKAGECONFIG[x11]</span><span> = </span><span style="color:#50a14f;">&quot;-DWITH_X11=ON,,virtual/libx11 gtk+3&quot;
+</span><span>
+</span><span style="color:#a0a1a7;">#required by imgui and glfw to compile
+</span><span style="color:#e45649;">DEPENDS</span><span> += </span><span style="color:#50a14f;">&quot;libxtst libxext libxxf86vm libxi libxrandr libxrender libxcursor libxinerama libdmx libxau libxcomposite&quot;
+</span><span>
+</span><span style="color:#a0a1a7;">#fix submodule issue
+</span><span style="color:#0184bc;">do_configure_prepend</span><span>() {
+</span><span>  </span><span style="color:#0184bc;">cd </span><span>${</span><span style="color:#e45649;">WORKDIR</span><span>}/git
+</span><span>  </span><span style="color:#e45649;">git</span><span> submodule update</span><span style="color:#e45649;"> --init --recursive
+</span><span>}
+</span><span style="color:#0184bc;">do_install_append</span><span>() {
+</span><span>  </span><span style="color:#a0a1a7;">#let&#39;s create the directories
+</span><span>  </span><span style="color:#e45649;">install -d </span><span>${</span><span style="color:#e45649;">D</span><span>}/${</span><span style="color:#e45649;">sbindir</span><span>}
+</span><span>  </span><span style="color:#a0a1a7;">#app needs to be executable
+</span><span>  </span><span style="color:#e45649;">install -m</span><span> 0755 ${</span><span style="color:#e45649;">WORKDIR</span><span>}/noctogui-init ${</span><span style="color:#e45649;">D</span><span>}/${</span><span style="color:#e45649;">sbindir</span><span>}/noctogui-init.sh
+</span><span>  </span><span style="color:#a0a1a7;">#let&#39;s add to the system dir to run our app on boot
+</span><span>  </span><span style="color:#e45649;">install -d </span><span>${</span><span style="color:#e45649;">D</span><span>}/${</span><span style="color:#e45649;">systemd_system_unitdir</span><span>}/system
+</span><span>  </span><span style="color:#e45649;">install -m</span><span> 0644 ${</span><span style="color:#e45649;">WORKDIR</span><span>}/noctogui-systemd.service ${</span><span style="color:#e45649;">D</span><span>}/${</span><span style="color:#e45649;">systemd_system_unitdir</span><span>}/system
+</span><span>  </span><span style="color:#a0a1a7;">#install our app here
+</span><span>  </span><span style="color:#e45649;">install -m</span><span> 0755 ${</span><span style="color:#e45649;">WORKDIR</span><span>}/build/app/noctoui ${</span><span style="color:#e45649;">D</span><span>}/usr/bin/noctoui
+</span><span>
+</span><span>}
+</span><span>
+</span><span style="color:#a0a1a7;">#when inheriting systemd
+</span><span>
+</span><span style="color:#a0a1a7;">#enable systemd support
+</span><span style="color:#e45649;">NATIVE_SYSTEMD_SUPPORT</span><span> = </span><span style="color:#50a14f;">&quot;1&quot;
+</span><span style="color:#a0a1a7;">#locates the systemd unit files when they are not found in the main recipe&#39;s package
+</span><span style="color:#e45649;">SYSTEMD_PACKAGES</span><span> = </span><span style="color:#50a14f;">&quot;${</span><span style="color:#e45649;">PN</span><span style="color:#50a14f;">}&quot;
+</span><span style="color:#a0a1a7;">#specifies the systemd service name for a package, multiple can be given
+</span><span style="color:#e45649;">SYSTEMD_SERVICE_${PN}</span><span> += </span><span style="color:#50a14f;">&quot;noctogui-systemd.service&quot;
+</span></code></pre>
+<h2 id="reflashing-with-our-app">Reflashing with our app</h2>
+<p>So now that we have everything set and ready to go we can rerun the flashing procedure in the previous post after we run:</p>
+<pre data-lang="shell" style="background-color:#fafafa;color:#383a42;" class="language-shell "><code class="language-shell" data-lang="shell"><span>bitbake core-image-sato
+</span></code></pre>
+<p>You can add the -v option at the end to get a verbose or more detailed output.</p>
+<h2 id="what-s-next">What's next</h2>
+<p>So with that in mind we covered, so far, creating a yocto base app with using the poky repo to help speed things up a bit. Again poky is not meant for production ready software but used as a reference, something to learn from. We then found out how to do some force recovery and flash our jetson nano and get it working with a custom setup and now we have implemented our own application utilizing Dear Imgui. Next post will be adding some possible opencv and over the air updates and that will be the last post.</p>
+ 
+        </section>
+
+        
+            <div class="post-tags">
+                <nav class="nav tags">
+                    <ul class="tags">
+                        
+                            <li><a href=//aquila-const.github.io/tags/yocto/>yocto</a></li>
+                        
+                            <li><a href=//aquila-const.github.io/tags/nvidia/>nvidia</a></li>
+                        
+                            <li><a href=//aquila-const.github.io/tags/tegra/>tegra</a></li>
+                        
+                            <li><a href=//aquila-const.github.io/tags/english/>english</a></li>
+                        
+                    </ul>
+                </nav>
+            </div>
+        
+            
+            <div class="talkyard-comments" data-discussion-id="nocto-nvidia-jetson-nano-with-yocto-part-three" style="margin-top: 45px;">
+        
+    </article>
+</main>
+
+
+
+        <footer>
+  <div style="display:flex">
+    
+        <a class="soc" href=https:&#x2F;&#x2F;github.com&#x2F;aquila-const title=GitHub>
+            <i data-feather=github></i>
+        </a>
+    
+        <a class="soc" href=https:&#x2F;&#x2F;linkedin.com&#x2F;in&#x2F;hunter-rafuse title=LinkedIn>
+            <i data-feather=linkedin></i>
+        </a>
+    
+        <a class="soc" href=mailto:hunterrafuse@outlook.com title=Email>
+            <i data-feather=mail></i>
+        </a>
+    
+  </div>
+  <div class="footer-info">
+    ⚡️ 2023 © hunter
+    | <a href="https://github.com/athul/archie">Archie Theme</a> |
+    Built With
+    <a href="https://www.getzola.org/">Zola</a>
+  </div>
+</footer>
+
+
+
+<script>
+    feather.replace();
+</script>
+
+
+    </div>
+</body>
+
+</html>
