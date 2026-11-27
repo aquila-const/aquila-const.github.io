@@ -1,0 +1,7 @@
+node_modules/
+dist/
+# Work in progress stays on this Mac until you publish it.
+drafts/
+
+artifact/
+.DS_Store

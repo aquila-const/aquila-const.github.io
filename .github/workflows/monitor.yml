@@ -1,0 +1,64 @@
+name: Monitor site
+
+# Checks the live site and keeps a CSV history on the `monitoring` branch.
+# A failed check fails this workflow, and GitHub emails you about failed runs.
+on:
+  schedule:
+    - cron: "37 * * * *" # 30 minutes after the hourly deploy
+  workflow_run:
+    workflows: ["Deploy to GitHub Pages"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write # to push stats.csv to the monitoring branch
+
+concurrency:
+  group: monitor
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Check the live site
+        id: check
+        continue-on-error: true
+        run: npm run check --silent
+
+      # History lives on its own branch so these commits never touch main
+      # (no redeploys, and no rejected pushes from the editor).
+      - name: Record the result on the monitoring branch
+        if: always() && steps.check.outputs.line != ''
+        env:
+          LINE: ${{ steps.check.outputs.line }}
+          STATUS: ${{ steps.check.outputs.status }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin monitoring >/dev/null; then
+            git fetch -q --depth 1 origin monitoring
+            git worktree add -q --detach stats FETCH_HEAD
+            cd stats && git checkout -q -B monitoring
+          else
+            git worktree add -q --detach stats
+            cd stats && git checkout -q --orphan monitoring && git rm -rfq .
+            echo "time,status,pages,assets,problems,home_ms" > stats.csv
+          fi
+          echo "$LINE" >> stats.csv
+          git add stats.csv
+          git commit -qm "Monitor: $STATUS"
+          git push -q origin monitoring
+
+      - name: Fail if the site has problems
+        if: steps.check.outcome == 'failure'
+        run: |
+          echo "The site check found problems. See the summary for this run."
+          exit 1
