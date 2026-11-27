@@ -8,7 +8,7 @@ summary: "A charging station simulated on the Arduino UNO Q: Linux on the Qualco
 ---
 Hello, it has been quite some time since I last wrote an article. The past three years have been a gap to recoup and come back with a new approach. So let's dive straight into this new project.
 
-The idea is to take a very constrained board, build something that behaves like a production product (please don't use it for production), and measure how it holds up. Every part of this series ends with numbers: flash and RAM cost per feature, latency between the two chips, and timing on the CAN bus.
+The idea is to take a very constrained board, build something that behaves like a production product (please don't use it for production), and measure how it holds up. Every part of this series ends with numbers: flash and RAM cost per feature, latency between the two chips, and timing on the CAN bus
 
 > [!note] What Part 1 covers
 > Which chip does what, why the microcontroller side runs Zephyr, the toolchain setup, and the first build. That first build becomes the baseline every later part is measured against.
